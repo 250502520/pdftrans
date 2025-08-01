@@ -5,8 +5,13 @@ const MAX_IMAGES = 100;
 const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
 
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
     const url = new URL(request.url);
+    
+    // 处理 CORS 预检请求
+    if (request.method === "OPTIONS") {
+      return handleCors();
+    }
     
     // 提供前端页面
     if (request.method === 'GET' && url.pathname === '/') {
@@ -18,9 +23,33 @@ export default {
       return handleConversion(request);
     }
     
-    return new Response('Not Found', { status: 404 });
+    // 处理其他路径
+    return new Response('Not Found', { 
+      status: 404,
+      headers: corsHeaders()
+    });
   }
 };
+
+// CORS 处理函数
+function handleCors() {
+  return new Response(null, {
+    headers: {
+      ...corsHeaders(),
+      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Max-Age': '86400',
+    }
+  });
+}
+
+// CORS 头部
+function corsHeaders() {
+  return {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Credentials': 'true'
+  };
+}
 
 // 提供前端HTML页面
 async function serveFrontend() {
@@ -209,6 +238,15 @@ async function serveFrontend() {
         background: #e8f5e9;
         color: #4caf50;
       }
+      
+      .debug-info {
+        margin-top: 20px;
+        padding: 10px;
+        background: #f0f0f0;
+        border-radius: 8px;
+        font-size: 12px;
+        color: #666;
+      }
     </style>
   </head>
   <body>
@@ -231,6 +269,8 @@ async function serveFrontend() {
       <button id="convertBtn" class="btn" disabled>生成PDF</button>
       
       <div class="status" id="statusMsg"></div>
+      
+      <div class="debug-info" id="debugInfo"></div>
     </div>
 
     <script>
@@ -241,6 +281,7 @@ async function serveFrontend() {
       const fileNameInput = document.getElementById('fileName');
       const convertBtn = document.getElementById('convertBtn');
       const statusMsg = document.getElementById('statusMsg');
+      const debugInfo = document.getElementById('debugInfo');
       
       // 存储选择的文件
       let selectedFiles = [];
@@ -321,14 +362,22 @@ async function serveFrontend() {
             formData.append('images', file);
           });
           
+          // 添加调试信息
+          const workerUrl = window.location.origin + '/convert';
+          debugInfo.textContent = \`请求URL: \${workerUrl}\`;
+          
           // 发送请求到当前worker的/convert端点
-          const response = await fetch('/convert', {
+          const response = await fetch(workerUrl, {
             method: 'POST',
             body: formData
           });
           
+          // 添加响应状态信息
+          debugInfo.textContent += \` | 响应状态: \${response.status} \${response.statusText}\`;
+          
           if (!response.ok) {
             const errorText = await response.text();
+            debugInfo.textContent += \` | 错误信息: \${errorText}\`;
             throw new Error(\`转换失败: \${errorText}\`);
           }
           
@@ -346,8 +395,8 @@ async function serveFrontend() {
           showStatus(\`转换成功！已下载 \${fileName}.pdf\`, 'success');
           
         } catch (err) {
-          showStatus(\`错误: \${err.message}\`, 'error');
           console.error('转换错误:', err);
+          showStatus(\`错误: \${err.message}\`, 'error');
         } finally {
           convertBtn.disabled = false;
         }
@@ -365,6 +414,9 @@ async function serveFrontend() {
           }, 5000);
         }
       }
+      
+      // 初始化
+      debugInfo.textContent = "Worker URL: " + window.location.origin;
     </script>
   </body>
   </html>
@@ -373,7 +425,8 @@ async function serveFrontend() {
   return new Response(html, {
     headers: { 
       'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'public, max-age=3600'
+      'Cache-Control': 'public, max-age=3600',
+      ...corsHeaders()
     }
   });
 }
@@ -381,15 +434,31 @@ async function serveFrontend() {
 // 处理转换请求
 async function handleConversion(request) {
   try {
+    // 记录请求信息
+    console.log('收到转换请求');
+    
     const formData = await request.formData();
     const files = formData.getAll('images');
     const fileName = formData.get('fileName') || 'converted_images';
     
     // 验证图片数量
+    if (files.length === 0) {
+      return new Response('未选择任何图片', {
+        status: 400,
+        headers: {
+          ...corsHeaders(),
+          'Content-Type': 'text/plain'
+        }
+      });
+    }
+    
     if (files.length > MAX_IMAGES) {
       return new Response(`最多支持 ${MAX_IMAGES} 张图片`, {
         status: 400,
-        headers: { 'Access-Control-Allow-Origin': '*' }
+        headers: {
+          ...corsHeaders(),
+          'Content-Type': 'text/plain'
+        }
       });
     }
 
@@ -401,7 +470,10 @@ async function handleConversion(request) {
     
     // 处理每张图片
     for (const file of files) {
-      if (!file || typeof file.arrayBuffer !== 'function') continue;
+      if (!file || typeof file.arrayBuffer !== 'function') {
+        console.warn('无效的文件对象:', file);
+        continue;
+      }
       
       // 检查文件大小
       if (file.size > MAX_FILE_SIZE) {
@@ -409,21 +481,24 @@ async function handleConversion(request) {
         continue;
       }
       
-      const imageBytes = new Uint8Array(await file.arrayBuffer());
-      
       try {
+        const imageBytes = new Uint8Array(await file.arrayBuffer());
+        
         // 根据图片类型处理
         if (file.type === 'image/jpeg' || file.type === 'image/jpg') {
           const image = await pdfDoc.embedJpg(imageBytes);
           addImagePage(pdfDoc, image);
+          console.log(`已处理JPEG图片: ${file.name}`);
         } 
         else if (file.type === 'image/png') {
           const image = await pdfDoc.embedPng(imageBytes);
           addImagePage(pdfDoc, image);
+          console.log(`已处理PNG图片: ${file.name}`);
         }
         else if (file.type === 'image/webp') {
           // 按需加载 webp 解码器
           if (!webpDecoder) {
+            console.log('加载WebP解码器...');
             // 动态加载 WebP 解码器
             const { decode } = await import('https://unpkg.com/webp-wasm@0.2.1/webp_wasm.js');
             await decode.ready;
@@ -438,30 +513,48 @@ async function handleConversion(request) {
             colorSpace: 'rgb'
           });
           addImagePage(pdfDoc, pngImage);
+          console.log(`已处理WebP图片: ${file.name}`);
         }
         else {
-          console.warn(`不支持的图片类型: ${file.type}`);
+          console.warn(`不支持的图片类型: ${file.type} - ${file.name}`);
         }
       } catch (err) {
-        console.error(`图片处理错误: ${err}`);
+        console.error(`图片处理错误: ${err.message} - ${file.name}`);
       }
+    }
+
+    // 检查是否有有效页面
+    if (pdfDoc.getPageCount() === 0) {
+      return new Response('未添加任何有效图片', {
+        status: 400,
+        headers: {
+          ...corsHeaders(),
+          'Content-Type': 'text/plain'
+        }
+      });
     }
 
     // 生成PDF文件
     const pdfBytes = await pdfDoc.save();
+    console.log(`PDF生成成功，文件名: ${fileName}.pdf`);
     
     // 返回PDF文件
     return new Response(pdfBytes, {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${cleanFileName(fileName)}.pdf"`
+        'Content-Disposition': `attachment; filename="${cleanFileName(fileName)}.pdf"`,
+        ...corsHeaders()
       }
     });
 
   } catch (err) {
+    console.error('转换处理错误:', err);
     return new Response(`服务器错误: ${err.message}`, { 
       status: 500,
-      headers: { 'Access-Control-Allow-Origin': '*' }
+      headers: {
+        ...corsHeaders(),
+        'Content-Type': 'text/plain'
+      }
     });
   }
 }
