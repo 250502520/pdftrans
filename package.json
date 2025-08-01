@@ -1,12 +1,10 @@
 {
-  "name": "image-to-pdf-converter",
+  "name": "image-to-pdf-worker",
   "version": "1.0.0",
-  "dependencies": {
-    "pdf-lib": "^1.17.1"
-  }
-}
-{
   "scripts": {
     "build": "echo 'Build complete'"
+  },
+  "dependencies": {
+    "pdf-lib": "^1.17.1"
   }
 }
