@@ -1,5 +1,4 @@
-import { PDFDocument } from 'https://cdn.skypack.dev/pdf-lib@1.17.1';
-import { decode } from 'https://unpkg.com/webp-wasm@0.2.1/webp_wasm.js';
+import { PDFDocument } from 'pdf-lib';
 
 // 配置参数
 const MAX_IMAGES = 100;
@@ -31,12 +30,16 @@ async function serveFrontend() {
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>图片转PDF工具 - Cloudflare版</title>
+    <title>图片转PDF工具</title>
     <style>
-      /* 精简版样式 */
-      * { box-sizing: border-box; margin: 0; padding: 0; }
-      body { 
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      }
+      
+      body {
         background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
         min-height: 100vh;
         padding: 20px;
@@ -44,26 +47,46 @@ async function serveFrontend() {
         justify-content: center;
         align-items: center;
       }
+      
       .container {
-        background: white;
+        background-color: rgba(255, 255, 255, 0.95);
         border-radius: 20px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
         width: 100%;
         max-width: 500px;
         padding: 30px;
-        text-align: center;
       }
-      h1 { color: #2c3e50; margin-bottom: 20px; }
+      
+      h1 {
+        color: #2c3e50;
+        text-align: center;
+        margin-bottom: 15px;
+        font-size: 1.8rem;
+      }
+      
+      .subtitle {
+        color: #7f8c8d;
+        text-align: center;
+        margin-bottom: 25px;
+        font-size: 1rem;
+      }
+      
       .upload-area {
         border: 2px dashed #3498db;
         border-radius: 15px;
-        padding: 40px 20px;
-        margin: 25px 0;
-        background: #f8f9fa;
-        position: relative;
+        padding: 35px 20px;
+        margin: 20px 0;
+        background-color: #f8f9fa;
         transition: all 0.3s;
+        position: relative;
+        text-align: center;
       }
-      .upload-area.active { background: #e3f2fd; border-color: #1e88e5; }
+      
+      .upload-area.active {
+        background-color: #e3f2fd;
+        border-color: #1e88e5;
+      }
+      
       .file-input {
         position: absolute;
         top: 0;
@@ -73,6 +96,7 @@ async function serveFrontend() {
         opacity: 0;
         cursor: pointer;
       }
+      
       .preview-container {
         display: flex;
         flex-wrap: wrap;
@@ -82,6 +106,7 @@ async function serveFrontend() {
         overflow-y: auto;
         justify-content: center;
       }
+      
       .preview-item {
         position: relative;
         width: 80px;
@@ -90,7 +115,13 @@ async function serveFrontend() {
         overflow: hidden;
         box-shadow: 0 3px 6px rgba(0,0,0,0.1);
       }
-      .preview-item img { width: 100%; height: 100%; object-fit: cover; }
+      
+      .preview-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      
       .preview-item .remove {
         position: absolute;
         top: 2px;
@@ -106,15 +137,33 @@ async function serveFrontend() {
         font-size: 14px;
         cursor: pointer;
       }
-      .input-group { margin: 20px 0; text-align: left; }
-      label { display: block; margin-bottom: 8px; color: #2c3e50; font-weight: 500; }
+      
+      .input-group {
+        margin: 25px 0;
+        text-align: left;
+      }
+      
+      label {
+        display: block;
+        margin-bottom: 8px;
+        color: #2c3e50;
+        font-weight: 500;
+      }
+      
       input[type="text"] {
         width: 100%;
         padding: 14px;
         border: 1px solid #ddd;
         border-radius: 10px;
         font-size: 16px;
+        transition: border 0.3s;
       }
+      
+      input[type="text"]:focus {
+        border-color: #3498db;
+        outline: none;
+      }
+      
       .btn {
         background: linear-gradient(to right, #3498db, #2c3e50);
         color: white;
@@ -129,28 +178,101 @@ async function serveFrontend() {
         box-shadow: 0 4px 10px rgba(52, 152, 219, 0.3);
         transition: all 0.3s;
       }
-      .btn:disabled { background: #95a5a6; cursor: not-allowed; box-shadow: none; }
+      
+      .btn:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(52, 152, 219, 0.4);
+      }
+      
+      .btn:disabled {
+        background: #95a5a6;
+        cursor: not-allowed;
+        box-shadow: none;
+      }
+      
       .status {
         margin-top: 20px;
         padding: 14px;
         border-radius: 10px;
-        display: none;
         font-size: 16px;
+        display: none;
       }
-      .status.visible { display: block; }
-      .loading { background: #fff8e1; color: #ff9800; }
-      .error { background: #ffebee; color: #f44336; }
-      .success { background: #e8f5e9; color: #4caf50; }
+      
+      .status.visible {
+        display: block;
+      }
+      
+      .loading {
+        background: #fff8e1;
+        color: #ff9800;
+      }
+      
+      .error {
+        background: #ffebee;
+        color: #f44336;
+      }
+      
+      .success {
+        background: #e8f5e9;
+        color: #4caf50;
+      }
+      
+      .instructions {
+        background: #e3f2fd;
+        border-left: 4px solid #3498db;
+        padding: 12px;
+        margin: 20px 0;
+        border-radius: 0 8px 8px 0;
+        text-align: left;
+      }
+      
+      .instructions h3 {
+        color: #2c3e50;
+        margin-bottom: 8px;
+        font-size: 1.1rem;
+      }
+      
+      .instructions ol {
+        padding-left: 20px;
+      }
+      
+      .instructions li {
+        margin-bottom: 8px;
+      }
+      
+      .counter {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        background: rgba(52, 152, 219, 0.8);
+        color: white;
+        padding: 3px 8px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+      }
     </style>
   </head>
   <body>
     <div class="container">
       <h1>图片转PDF工具</h1>
+      <p class="subtitle">高质量转换 • 无限图片 • 自定义名称</p>
+      
+      <div class="instructions">
+        <h3>使用说明：</h3>
+        <ol>
+          <li>点击下方区域选择图片（支持多选）</li>
+          <li>输入PDF文件名称（可选）</li>
+          <li>点击"生成PDF"按钮</li>
+          <li>等待转换完成后自动下载</li>
+        </ol>
+      </div>
       
       <div class="upload-area" id="uploadArea">
-        <h3>点击选择图片</h3>
+        <div class="upload-icon">📁</div>
+        <h3>点击或拖放图片到这里</h3>
         <p>支持JPG, PNG, WebP格式</p>
         <input type="file" id="fileInput" class="file-input" accept="image/*" multiple>
+        <div class="counter" id="fileCounter">0张图片</div>
       </div>
       
       <div class="preview-container" id="previewContainer"></div>
@@ -173,25 +295,67 @@ async function serveFrontend() {
       const fileNameInput = document.getElementById('fileName');
       const convertBtn = document.getElementById('convertBtn');
       const statusMsg = document.getElementById('statusMsg');
+      const fileCounter = document.getElementById('fileCounter');
       
+      // 存储选择的文件
       let selectedFiles = [];
       
       // 文件选择处理
-      fileInput.addEventListener('change', function() {
-        if (this.files.length === 0) return;
+      fileInput.addEventListener('change', handleFileSelect);
+      
+      // 拖放功能
+      uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('active');
+      });
+      
+      uploadArea.addEventListener('dragleave', () => {
+        uploadArea.classList.remove('active');
+      });
+      
+      uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('active');
+        handleFileDrop(e.dataTransfer.files);
+      });
+      
+      // 处理文件选择
+      function handleFileSelect(e) {
+        handleFiles(e.target.files);
+      }
+      
+      // 处理文件拖放
+      function handleFileDrop(files) {
+        handleFiles(files);
+      }
+      
+      // 处理文件
+      function handleFiles(files) {
+        if (files.length === 0) return;
         
-        // 添加新文件
-        for (let i = 0; i < this.files.length; i++) {
-          const file = this.files[i];
+        // 添加新文件到已选文件列表
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
           if (file.type.startsWith('image/')) {
             selectedFiles.push(file);
           }
         }
         
+        // 更新文件计数器
+        updateFileCounter();
+        
+        // 显示预览
         renderPreviews();
+        
+        // 启用转换按钮
         convertBtn.disabled = false;
-        showStatus(\`已选择 \${selectedFiles.length} 张图片\`, 'success');
-      });
+        showStatus(\`已添加 \${files.length} 张图片\`, 'success');
+      }
+      
+      // 更新文件计数器
+      function updateFileCounter() {
+        fileCounter.textContent = \`\${selectedFiles.length}张图片\`;
+      }
       
       // 渲染预览
       function renderPreviews() {
@@ -200,7 +364,7 @@ async function serveFrontend() {
         selectedFiles.forEach((file, index) => {
           const reader = new FileReader();
           
-          reader.onload = function(e) {
+          reader.onload = (e) => {
             const previewItem = document.createElement('div');
             previewItem.className = 'preview-item';
             
@@ -225,6 +389,7 @@ async function serveFrontend() {
       // 移除文件
       function removeFile(index) {
         selectedFiles.splice(index, 1);
+        updateFileCounter();
         renderPreviews();
         
         if (selectedFiles.length === 0) {
@@ -233,7 +398,7 @@ async function serveFrontend() {
       }
       
       // 转换按钮点击
-      convertBtn.addEventListener('click', async function() {
+      convertBtn.addEventListener('click', async () => {
         if (selectedFiles.length === 0) {
           showStatus('请先选择图片', 'error');
           return;
@@ -277,8 +442,8 @@ async function serveFrontend() {
           showStatus(\`转换成功！已下载 \${fileName}.pdf\`, 'success');
           
         } catch (err) {
-          showStatus(\`错误: \${err.message}\`, 'error');
           console.error('转换错误:', err);
+          showStatus(\`错误: \${err.message}\`, 'error');
         } finally {
           convertBtn.disabled = false;
         }
@@ -287,7 +452,8 @@ async function serveFrontend() {
       // 显示状态消息
       function showStatus(message, type) {
         statusMsg.textContent = message;
-        statusMsg.className = \`status visible \${type}\`;
+        statusMsg.className = 'status visible';
+        statusMsg.classList.add(type);
         
         // 自动隐藏成功消息
         if (type === 'success') {
@@ -296,13 +462,19 @@ async function serveFrontend() {
           }, 5000);
         }
       }
+      
+      // 初始化
+      updateFileCounter();
     </script>
   </body>
   </html>
   `;
   
   return new Response(html, {
-    headers: { 'Content-Type': 'text/html; charset=utf-8' }
+    headers: { 
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'public, max-age=3600'
+    }
   });
 }
 
@@ -323,6 +495,9 @@ async function handleConversion(request) {
 
     // 创建PDF文档
     const pdfDoc = await PDFDocument.create();
+    
+    // 动态导入 webp-wasm（从CDN）
+    let webpDecoder = null;
     
     // 处理每张图片
     for (const file of files) {
@@ -347,9 +522,15 @@ async function handleConversion(request) {
           addImagePage(pdfDoc, image);
         }
         else if (file.type === 'image/webp') {
-          // 初始化WebP解码器
-          await decode.ready;
-          const { data, width, height } = decode(imageBytes);
+          // 按需加载 webp 解码器
+          if (!webpDecoder) {
+            // 动态加载 WebP 解码器
+            const { decode } = await import('https://unpkg.com/webp-wasm@0.2.1/webp_wasm.js');
+            await decode.ready;
+            webpDecoder = decode;
+          }
+          
+          const { data, width, height } = webpDecoder.decode(imageBytes);
           const pngImage = await pdfDoc.embedPng({
             width,
             height,
@@ -378,7 +559,10 @@ async function handleConversion(request) {
     });
 
   } catch (err) {
-    return new Response(`服务器错误: ${err.message}`, { status: 500 });
+    return new Response(`服务器错误: ${err.message}`, { 
+      status: 500,
+      headers: { 'Access-Control-Allow-Origin': '*' }
+    });
   }
 }
 
