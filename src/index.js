@@ -64,13 +64,6 @@ async function serveFrontend() {
         font-size: 1.8rem;
       }
       
-      .subtitle {
-        color: #7f8c8d;
-        text-align: center;
-        margin-bottom: 25px;
-        font-size: 1rem;
-      }
-      
       .upload-area {
         border: 2px dashed #3498db;
         border-radius: 15px;
@@ -216,63 +209,16 @@ async function serveFrontend() {
         background: #e8f5e9;
         color: #4caf50;
       }
-      
-      .instructions {
-        background: #e3f2fd;
-        border-left: 4px solid #3498db;
-        padding: 12px;
-        margin: 20px 0;
-        border-radius: 0 8px 8px 0;
-        text-align: left;
-      }
-      
-      .instructions h3 {
-        color: #2c3e50;
-        margin-bottom: 8px;
-        font-size: 1.1rem;
-      }
-      
-      .instructions ol {
-        padding-left: 20px;
-      }
-      
-      .instructions li {
-        margin-bottom: 8px;
-      }
-      
-      .counter {
-        position: absolute;
-        bottom: 10px;
-        right: 10px;
-        background: rgba(52, 152, 219, 0.8);
-        color: white;
-        padding: 3px 8px;
-        border-radius: 20px;
-        font-size: 0.8rem;
-      }
     </style>
   </head>
   <body>
     <div class="container">
       <h1>图片转PDF工具</h1>
-      <p class="subtitle">高质量转换 • 无限图片 • 自定义名称</p>
-      
-      <div class="instructions">
-        <h3>使用说明：</h3>
-        <ol>
-          <li>点击下方区域选择图片（支持多选）</li>
-          <li>输入PDF文件名称（可选）</li>
-          <li>点击"生成PDF"按钮</li>
-          <li>等待转换完成后自动下载</li>
-        </ol>
-      </div>
       
       <div class="upload-area" id="uploadArea">
-        <div class="upload-icon">📁</div>
-        <h3>点击或拖放图片到这里</h3>
+        <h3>点击选择图片</h3>
         <p>支持JPG, PNG, WebP格式</p>
         <input type="file" id="fileInput" class="file-input" accept="image/*" multiple>
-        <div class="counter" id="fileCounter">0张图片</div>
       </div>
       
       <div class="preview-container" id="previewContainer"></div>
@@ -295,67 +241,26 @@ async function serveFrontend() {
       const fileNameInput = document.getElementById('fileName');
       const convertBtn = document.getElementById('convertBtn');
       const statusMsg = document.getElementById('statusMsg');
-      const fileCounter = document.getElementById('fileCounter');
       
       // 存储选择的文件
       let selectedFiles = [];
       
       // 文件选择处理
-      fileInput.addEventListener('change', handleFileSelect);
-      
-      // 拖放功能
-      uploadArea.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        uploadArea.classList.add('active');
-      });
-      
-      uploadArea.addEventListener('dragleave', () => {
-        uploadArea.classList.remove('active');
-      });
-      
-      uploadArea.addEventListener('drop', (e) => {
-        e.preventDefault();
-        uploadArea.classList.remove('active');
-        handleFileDrop(e.dataTransfer.files);
-      });
-      
-      // 处理文件选择
-      function handleFileSelect(e) {
-        handleFiles(e.target.files);
-      }
-      
-      // 处理文件拖放
-      function handleFileDrop(files) {
-        handleFiles(files);
-      }
-      
-      // 处理文件
-      function handleFiles(files) {
-        if (files.length === 0) return;
+      fileInput.addEventListener('change', function() {
+        if (this.files.length === 0) return;
         
-        // 添加新文件到已选文件列表
-        for (let i = 0; i < files.length; i++) {
-          const file = files[i];
+        // 添加新文件
+        for (let i = 0; i < this.files.length; i++) {
+          const file = this.files[i];
           if (file.type.startsWith('image/')) {
             selectedFiles.push(file);
           }
         }
         
-        // 更新文件计数器
-        updateFileCounter();
-        
-        // 显示预览
         renderPreviews();
-        
-        // 启用转换按钮
         convertBtn.disabled = false;
-        showStatus(\`已添加 \${files.length} 张图片\`, 'success');
-      }
-      
-      // 更新文件计数器
-      function updateFileCounter() {
-        fileCounter.textContent = \`\${selectedFiles.length}张图片\`;
-      }
+        showStatus(\`已选择 \${selectedFiles.length} 张图片\`, 'success');
+      });
       
       // 渲染预览
       function renderPreviews() {
@@ -364,7 +269,7 @@ async function serveFrontend() {
         selectedFiles.forEach((file, index) => {
           const reader = new FileReader();
           
-          reader.onload = (e) => {
+          reader.onload = function(e) {
             const previewItem = document.createElement('div');
             previewItem.className = 'preview-item';
             
@@ -389,7 +294,6 @@ async function serveFrontend() {
       // 移除文件
       function removeFile(index) {
         selectedFiles.splice(index, 1);
-        updateFileCounter();
         renderPreviews();
         
         if (selectedFiles.length === 0) {
@@ -398,7 +302,7 @@ async function serveFrontend() {
       }
       
       // 转换按钮点击
-      convertBtn.addEventListener('click', async () => {
+      convertBtn.addEventListener('click', async function() {
         if (selectedFiles.length === 0) {
           showStatus('请先选择图片', 'error');
           return;
@@ -442,8 +346,8 @@ async function serveFrontend() {
           showStatus(\`转换成功！已下载 \${fileName}.pdf\`, 'success');
           
         } catch (err) {
-          console.error('转换错误:', err);
           showStatus(\`错误: \${err.message}\`, 'error');
+          console.error('转换错误:', err);
         } finally {
           convertBtn.disabled = false;
         }
@@ -452,8 +356,7 @@ async function serveFrontend() {
       // 显示状态消息
       function showStatus(message, type) {
         statusMsg.textContent = message;
-        statusMsg.className = 'status visible';
-        statusMsg.classList.add(type);
+        statusMsg.className = \`status visible \${type}\`;
         
         // 自动隐藏成功消息
         if (type === 'success') {
@@ -462,9 +365,6 @@ async function serveFrontend() {
           }, 5000);
         }
       }
-      
-      // 初始化
-      updateFileCounter();
     </script>
   </body>
   </html>
