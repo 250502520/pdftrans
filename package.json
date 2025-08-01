@@ -2,7 +2,9 @@
   "name": "image-to-pdf-converter",
   "version": "1.0.0",
   "dependencies": {
-    "pdf-lib": "^1.17.1",
-    "webp-wasm": "^0.2.1"
+    "pdf-lib": "^1.17.1"
+  },
+  "scripts": {
+    "build": "echo 'No build needed'"
   }
 }
