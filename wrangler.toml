@@ -1,4 +1,19 @@
-name = "image-to-pdf-converter"
-main = "src/index.js"
-compatibility_date = "2025-08-01"
-compatibility_flags = ["nodejs_compat"]
+name = "image-to-pdf-worker"
+type = "javascript"
+compatibility_date = "2024-01-01"
+
+[build]
+upload.format = "service-worker"
+
+[build.upload]
+format = "service-worker"
+
+[vars]
+MAX_IMAGES = "50"
+MAX_FILE_SIZE = "8388608" # 8MB in bytes
+MAX_TOTAL_SIZE = "104857600" # 100MB in bytes
+MEMORY_THRESHOLD = "115343360" # 110MB in bytes
+
+[limits]
+cpu_ms = 20000  # 20秒CPU时间限制
+memory = 128    # 128MB内存限制
