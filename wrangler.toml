@@ -2,3 +2,7 @@ name = "image-to-pdf-converter"
 main = "src/index.js"
 compatibility_date = "2025-08-01"
 node_compat = true
+compatibility_flags = ["nodejs_compat"]
+
+[build]
+command = "npm install"
